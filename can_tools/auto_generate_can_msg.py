@@ -60,6 +60,17 @@ def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", de
     lines.append("# ================================================\n")
     # import module 
     lines.append("from typing import Dict, List, Tuple\n")
+    lines.append("import re\n")
+    # === Enum strict/loose switch (emitted into generated file) ===
+    lines.append("STRICT_ENUM = False  # loose by default; set True to raise on unknown enum values\n")
+    lines.append("def to_enum(cls, value, strict: bool = False):\n")
+    lines.append("    \"\"\"Cast integer to IntEnum; if strict=False and value is unknown, return the raw int.\"\"\"\n")
+    lines.append("    try:\n")
+    lines.append("        return cls(int(value))\n")
+    lines.append("    except Exception:\n")
+    lines.append("        if strict:\n")
+    lines.append("            raise\n")
+    lines.append("        return int(value)\n\n")
 
     # emit helpers we depend on
     lines.append(inspect.getsource(sanitize_enum_member))
@@ -114,7 +125,7 @@ def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", de
     lines.append("")
 
     # ===== Encode function =====
-    lines.append(f"def generate_0x{msg.frame_id:X}_can_msg_bytes(msg: canfd_0x{msg.frame_id:X}_msg, debug: bool = False) -> bytes:")
+    lines.append(f"def generate_0x{msg.frame_id:X}_can_msg_bytes(msg: canfd_0x{msg.frame_id:X}_msg, debug: bool = False) -> List[int]:")
     lines.append("    data = bytearray(64)")
     for sig in msg.signals:
         lname = sig.name.lower()
@@ -132,7 +143,7 @@ def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", de
         lines.append(f"                before = data[byte_i]")
         lines.append(f"                data[byte_i] |= (1 << bit_i)")
         lines.append(f"                after = data[byte_i]")
-        lines.append(f"                if debug: print(f'Encode {sig.name}: byte[{{byte_i}}] bit {{bit_i}} → {{before:#04x}} → {{after:#04x}}')")
+        lines.append(f"                if debug: print(f'Encode {sig.name}: byte{{byte_i}} bit {{bit_i}} → {{before:#04x}} → {{after:#04x}}')")
         lines.append("    else:")
         lines.append(f"        for i, (byte_i, bit_i) in enumerate(get_motorola_bit_positions({sig.name}_OFFSET, {sig.name}_LEN)):")
         lines.append(f"            bit_val = ({lname} >> ({sig.name}_LEN - 1 - i)) & 1")
@@ -140,12 +151,13 @@ def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", de
         lines.append(f"                before = data[byte_i]")
         lines.append(f"                data[byte_i] |= (1 << bit_i)")
         lines.append(f"                after = data[byte_i]")
-        lines.append(f"                if debug: print(f'Encode {sig.name}: byte[{{byte_i}}] bit {{bit_i}} → {{before:#04x}} → {{after:#04x}}')")
+        lines.append(f"                if debug: print(f'Encode {sig.name}: byte{{byte_i}} bit {{bit_i}} → {{before:#04x}} → {{after:#04x}}')")
     lines.append("    # Materialize to bytes for stable printing/return")
     lines.append("    outb = bytes(data)")
     lines.append("    if debug:")
     lines.append("        print('[DEBUG] Encoded data bytes:', outb.hex(':'))")
-    lines.append("    return outb\n")
+    lines.append("        print('[DEBUG] Encoded data list:', list(outb))")
+    lines.append("    return list(outb)\n")
 
     # ===== Decode function =====
     lines.append(f"def decode_0x{msg.frame_id:X}_can_msg(data: bytes, debug: bool = False) -> canfd_0x{msg.frame_id:X}_msg:")
@@ -173,7 +185,8 @@ def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", de
     for sig in msg.signals:
         if sig.name in signal_enums:
             enum_name = f"{sig.name}Enum"
-            ctor_args.append(f"{enum_name}({sig.name.lower()})")
+            # STRICT_ENUM hook
+            ctor_args.append(f"to_enum({enum_name}, {sig.name.lower()}, STRICT_ENUM)")
         else:
             ctor_args.append(f"{sig.name.lower()}")
     lines.append(f"    return canfd_0x{msg.frame_id:X}_msg({', '.join(ctor_args)})\n")
@@ -181,9 +194,9 @@ def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", de
     # === sample code ===
     lines.append("if __name__ == '__main__':")
     lines.append(f"    msg = canfd_0x{msg.frame_id:X}_msg()")
-    lines.append(f"    data = generate_0x{msg.frame_id:X}_can_msg_bytes(msg, debug=True)")
+    lines.append(f"    data = generate_0x{msg.frame_id:X}_can_msg_bytes(msg)")
     lines.append(f"    print('Generated CAN FD data:', data.hex(':'))")
-    lines.append(f"    decoded = decode_0x{msg.frame_id:X}_can_msg(data, debug=True)")
+    lines.append(f"    decoded = decode_0x{msg.frame_id:X}_can_msg(data)")
     lines.append(f"    print('Decoded message:', decoded)")
 
     with open(output_file, "w", encoding="utf-8") as f:
