@@ -39,7 +39,7 @@ def get_motorola_bit_positions(start_bit: int, length: int) -> List[Tuple[int, i
 
 # ========================= Generator ========================= #
 
-def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", debug: bool = False, strict: bool = False):
+def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", debug: bool = False, strict: bool = False, filename_prefix: str = ""):
     db = cantools.database.load_file(dbc_path)
     msg = next((m for m in db.messages if m.frame_id == target_id), None)
     if msg is None:
@@ -49,7 +49,7 @@ def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", de
     match = re.search(r"(\d{8})", dbc_name)
     version_info = match.group(1) if match else "unknown_version"
 
-    output_file = os.path.join(output_dir, f"generate_0x{target_id:X}.py")
+    output_file = os.path.join(output_dir, f"{filename_prefix}generate_0x{target_id:X}.py")
 
     lines: List[str] = []
     lines.append("# ================================================")
@@ -202,9 +202,9 @@ def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", de
         if sig.name in signal_enums:
             default_key = sorted(signal_enums[sig.name].keys())[0]
             default_member = sanitize_enum_member(signal_enums[sig.name][default_key])
-            lines.append(f"        {sig.name}={sig.name}Enum.{default_member},")
+            lines.append(f"        {sig.name}={sig.name}Enum.{default_member},  # default: {sig.name}Enum.{default_member}({default_key})")
         else:
-            lines.append(f"        {sig.name}=0,")
+            lines.append(f"        {sig.name}=0,  # default: 0")
     lines.append("    )")
     # Generate list[int], also print hex for easy inspection
     lines.append(f"    data_list = generate_0x{msg.frame_id:X}_can_msg_bytes(msg)")
@@ -238,6 +238,7 @@ if __name__ == "__main__":
     parser.add_argument("--dbc", required=True, help="指定 DBC 檔案路徑")
     parser.add_argument("--id", help="指定目標 CAN ID (例如 0x495 或 1173)")
     parser.add_argument("--out", default=".", help="輸出目錄 (預設目前目錄)")
+    parser.add_argument("--prefix", default="", help="(可選) 產生檔名前綴，例如 'IVI_' → 產出 IVI_generate_0x*.py")
     parser.add_argument("--debug", action="store_true", help="顯示位元層級除錯輸出")
     parser.add_argument("--list", action="store_true", help="列出 DBC 所有 CAN 訊息")
     parser.add_argument("--strict", action="store_true", help="Enum 嚴格模式：遇到未定義的枚舉值即拋出錯誤（預設為寬鬆模式）")
@@ -251,7 +252,7 @@ if __name__ == "__main__":
         if str(args.id).lower() == 'all':
             db = cantools.database.load_file(args.dbc)
             for m in db.messages:
-                generate_can_msg_py(args.dbc, m.frame_id, args.out, args.debug, strict=args.strict)
+                generate_can_msg_py(args.dbc, m.frame_id, args.out, args.debug, strict=args.strict, filename_prefix=args.prefix)
         else:
             target_id = int(args.id, 16) if str(args.id).startswith("0x") else int(args.id)
-            generate_can_msg_py(args.dbc, target_id, args.out, args.debug, strict=args.strict)
+            generate_can_msg_py(args.dbc, target_id, args.out, args.debug, strict=args.strict, filename_prefix=args.prefix)
