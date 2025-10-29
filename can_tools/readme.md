@@ -16,8 +16,6 @@
 * 具「**可拷貝貼上**」的完整建構子示例（所有欄位一覽，Enum 預設值註解）
 * 內建 `STRICT_ENUM` 與 `to_enum()`：支援 **寬鬆／嚴格** Enum 模式
 
-> 舊版 README 範例與基本操作沿用並擴充（如下文）。
-
 ---
 
 ## ⚙️ Installation
@@ -63,8 +61,6 @@ python auto_generate_can_msg.py --dbc <your.dbc> --id 0x495
 generate_0x495.py
 
 ```
-
-> 舊版說明亦包含產生單支檔案的說明，沿用不變。
 
 ---
 
@@ -122,8 +118,6 @@ python generate_0x<ID>.py
 * **完整建構子範例**（所有欄位一覽、Enum 預設值註解），方便 copy-paste
 * `STRICT_ENUM` 與 `to_enum()`：解碼時套用 **嚴格／寬鬆** 模式
 
-> 舊版有簡表，現已補齊最新功能（回傳 `List[int]`、建構子清單、嚴格模式等）。
-
 ---
 
 ## 🧠 Enum 與值處理
@@ -162,8 +156,6 @@ Decode <Signal>: byte=b, bit=k, val=1
 
 ```
 
-對校對實機／產線流程非常實用。
-
 ---
 
 ## 📂 建議專案結構
@@ -178,8 +170,6 @@ car_tools/
 
 ```
 
-> 舊版也有此區塊，保留並微調說明。
-
 ---
 
 ## 🧩 已知相容性與注意事項
@@ -187,7 +177,7 @@ car_tools/
 * 同時支援 **Motorola (big_endian)** 與 **Intel (little_endian)** 位元序。
 * CAN FD 最長 64 bytes。
 * 產生檔預設回傳 `List[int]`，若需 `bytes` 請自行 `bytes(list_int)`。
-* 產生的 `__main__` 範例使用 **明確建構子列出所有欄位**，對同事「看得見能設哪些欄位」很友善。
+* 產生的 `__main__` 範例使用 **明確建構子列出所有欄位**。
 
 ---
 
@@ -196,4 +186,5 @@ car_tools/
 MIT License © 2025 [LarryMai](https://github.com/LarryMai)
 
 ---
+
 
