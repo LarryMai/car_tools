@@ -196,11 +196,23 @@ def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", de
 
     # === sample code ===
     lines.append("if __name__ == '__main__':")
-    lines.append(f"    msg = canfd_0x{msg.frame_id:X}_msg()")
-    lines.append(f"    data = generate_0x{msg.frame_id:X}_can_msg_bytes(msg)")
-    lines.append(f"    print('Generated CAN FD data:', data)")
-    lines.append(f"    decoded = decode_0x{msg.frame_id:X}_can_msg(data)")
-    lines.append(f"    print('Decoded message:', decoded)")
+    # Pretty, explicit constructor with all fields shown for copy-paste friendliness
+    lines.append(f"    msg = canfd_0x{msg.frame_id:X}_msg(")
+    for i, sig in enumerate(msg.signals):
+        if sig.name in signal_enums:
+            default_key = sorted(signal_enums[sig.name].keys())[0]
+            default_member = sanitize_enum_member(signal_enums[sig.name][default_key])
+            lines.append(f"        {sig.name}={sig.name}Enum.{default_member},")
+        else:
+            lines.append(f"        {sig.name}=0,")
+    lines.append("    )")
+    # Generate list[int], also print hex for easy inspection
+    lines.append(f"    data_list = generate_0x{msg.frame_id:X}_can_msg_bytes(msg)")
+    lines.append("    print('Generated CAN FD data (list):', data_list)")
+    lines.append("    data_bytes = bytes(data_list)")
+    lines.append("    print('Generated CAN FD data (hex):', data_bytes.hex(':'))")
+    lines.append(f"    decoded = decode_0x{msg.frame_id:X}_can_msg(data_bytes)")
+    lines.append("    print('Decoded message:', decoded)")
 
     with open(output_file, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
