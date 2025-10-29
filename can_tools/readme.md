@@ -197,7 +197,3 @@ MIT License © 2025 [LarryMai](https://github.com/LarryMai)
 
 ---
 
-### 備註
-
-* 此 README 已依據你最新的產生器程式（畫布檔「Auto Generate Can Msg Full」）更新，新增 `--prefix`、`--strict`、`--id all`、建構子完整欄位與 `List[int]` 回傳等內容。
-* 若要我直接幫你在 repo 建立／覆蓋 `can_tools/readme.md`，告訴我要用哪個分支或直接推到 `main`。
