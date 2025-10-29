@@ -59,18 +59,21 @@ def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", de
     lines.append(f"#  Generated  : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append("# ================================================\n")
     # import module 
-    lines.append("from typing import Dict, List, Tuple\n")
-    lines.append("import re\n")
+    lines.append("from typing import Dict, List, Tuple")
+    lines.append("import re")
+    lines.append("")
+    
     # === Enum strict/loose switch (emitted into generated file) ===
-    lines.append("STRICT_ENUM = False  # loose by default; set True to raise on unknown enum values\n")
-    lines.append("def to_enum(cls, value, strict: bool = False):\n")
-    lines.append("    \"\"\"Cast integer to IntEnum; if strict=False and value is unknown, return the raw int.\"\"\"\n")
-    lines.append("    try:\n")
-    lines.append("        return cls(int(value))\n")
-    lines.append("    except Exception:\n")
-    lines.append("        if strict:\n")
-    lines.append("            raise\n")
-    lines.append("        return int(value)\n\n")
+    lines.append("STRICT_ENUM = False  # loose by default; set True to raise on unknown enum values")
+    lines.append("def to_enum(cls, value, strict: bool = False):")
+    lines.append("    \"\"\"Cast integer to IntEnum; if strict=False and value is unknown, return the raw int.\"\"\"")
+    lines.append("    try:")
+    lines.append("        return cls(int(value))")
+    lines.append("    except Exception:")
+    lines.append("        if strict:")
+    lines.append("            raise")
+    lines.append("        return int(value)")
+    lines.append("")
 
     # emit helpers we depend on
     lines.append(inspect.getsource(sanitize_enum_member))
