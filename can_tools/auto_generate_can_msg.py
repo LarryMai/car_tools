@@ -39,7 +39,7 @@ def get_motorola_bit_positions(start_bit: int, length: int) -> List[Tuple[int, i
 
 # ========================= Generator ========================= #
 
-def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", debug: bool = False):
+def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", debug: bool = False, strict: bool = False):
     db = cantools.database.load_file(dbc_path)
     msg = next((m for m in db.messages if m.frame_id == target_id), None)
     if msg is None:
@@ -64,7 +64,7 @@ def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", de
     lines.append("")
     
     # === Enum strict/loose switch (emitted into generated file) ===
-    lines.append("STRICT_ENUM = False  # loose by default; set True to raise on unknown enum values")
+    lines.append(f"STRICT_ENUM = {'True' if strict else 'False'}  # loose by default; set True to raise on unknown enum values")
     lines.append("def to_enum(cls, value, strict: bool = False):")
     lines.append("    \"\"\"Cast integer to IntEnum; if strict=False and value is unknown, return the raw int.\"\"\"")
     lines.append("    try:")
@@ -198,7 +198,7 @@ def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", de
     lines.append("if __name__ == '__main__':")
     lines.append(f"    msg = canfd_0x{msg.frame_id:X}_msg()")
     lines.append(f"    data = generate_0x{msg.frame_id:X}_can_msg_bytes(msg)")
-    lines.append(f"    print('Generated CAN FD data:', data.hex(':'))")
+    lines.append(f"    print('Generated CAN FD data:', data)")
     lines.append(f"    decoded = decode_0x{msg.frame_id:X}_can_msg(data)")
     lines.append(f"    print('Decoded message:', decoded)")
 
@@ -228,12 +228,18 @@ if __name__ == "__main__":
     parser.add_argument("--out", default=".", help="輸出目錄 (預設目前目錄)")
     parser.add_argument("--debug", action="store_true", help="顯示位元層級除錯輸出")
     parser.add_argument("--list", action="store_true", help="列出 DBC 所有 CAN 訊息")
+    parser.add_argument("--strict", action="store_true", help="Enum 嚴格模式：遇到未定義的枚舉值即拋出錯誤（預設為寬鬆模式）")
     args = parser.parse_args()
 
     if args.list:
         list_dbc_messages(args.dbc)
     else:
         if not args.id:
-            raise ValueError("請使用 --id 指定要生成的 CAN ID")
-        target_id = int(args.id, 16) if str(args.id).startswith("0x") else int(args.id)
-        generate_can_msg_py(args.dbc, target_id, args.out, args.debug)
+            raise ValueError("請使用 --id 指定要生成的 CAN ID；或使用 --id all 生成全部")
+        if str(args.id).lower() == 'all':
+            db = cantools.database.load_file(args.dbc)
+            for m in db.messages:
+                generate_can_msg_py(args.dbc, m.frame_id, args.out, args.debug, strict=args.strict)
+        else:
+            target_id = int(args.id, 16) if str(args.id).startswith("0x") else int(args.id)
+            generate_can_msg_py(args.dbc, target_id, args.out, args.debug, strict=args.strict)
