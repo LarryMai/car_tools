@@ -166,6 +166,9 @@ car_tools/
 ├── can_tools/
 │   ├── auto_generate_can_msg.py      ← 產生器
 │   ├── generate_0xID.py             ← 產生出的 CAN FD 模組
+│   ├── examples/                     ←  範例
+│   │   ├── can_sim_server_zlg.py
+│   │   └── README.md
 │   └── README.md
 
 ```
@@ -178,6 +181,7 @@ car_tools/
 * CAN FD 最長 64 bytes。
 * 產生檔預設回傳 `List[int]`，若需 `bytes` 請自行 `bytes(list_int)`。
 * 產生的 `__main__` 範例使用 **明確建構子列出所有欄位**。
+* ZLG CAN 模擬/回應 Server 教學請見 [`examples/README.md`](./examples/README.md)
 
 ---
 
