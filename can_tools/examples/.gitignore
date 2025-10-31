@@ -1,0 +1,12 @@
+# build / cache
+__pycache__/
+*.pyc
+
+# logs & captures
+*.log
+*.pcap
+*.pcapng
+
+# local ZLG binaries
+zlgcan.dll
+kerneldlls/
