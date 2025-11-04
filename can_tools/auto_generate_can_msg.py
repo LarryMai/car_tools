@@ -1,5 +1,6 @@
 import cantools
 import os
+import errno
 import re
 import argparse
 import inspect
@@ -9,6 +10,14 @@ from enum import IntEnum
 from typing import Dict, List, Tuple
 
 # ========================= Helpers ========================= #
+
+def ensure_dir(path: str) -> None:
+    try:
+        os.makedirs(path, exist_ok=True)
+    except OSError as e:
+        # 路徑已存在但不是資料夾，或路徑非法、沒權限
+        raise RuntimeError(f"❌ 無法建立輸出資料夾: {path} ({e})") from e
+
 
 def unique_member_name(base: str, used: dict) -> str:
     """確保 enum 成員名稱唯一，重複就加 _1, _2 ..."""
@@ -56,7 +65,7 @@ def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", de
     dbc_name = os.path.basename(dbc_path)
     match = re.search(r"(\d{8})", dbc_name)
     version_info = match.group(1) if match else "unknown_version"
-
+    
     output_file = os.path.join(output_dir, f"{filename_prefix}generate_0x{target_id:X}.py")
 
     lines: List[str] = []
@@ -253,6 +262,11 @@ if __name__ == "__main__":
     if args.list:
         list_dbc_messages(args.dbc)
     else:
+        # Ensure the output folder exists.
+        out_dir = args.out or "."   # 空字串也當成 "."
+        if out_dir != ".":
+            ensure_dir(out_dir)
+        
         if not args.id:
             raise ValueError("請使用 --id 指定要生成的 CAN ID；或使用 --id all 生成全部")
         if str(args.id).lower() == 'all':
