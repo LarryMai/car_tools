@@ -10,6 +10,14 @@ from typing import Dict, List, Tuple
 
 # ========================= Helpers ========================= #
 
+def unique_member_name(base: str, used: dict) -> str:
+    """確保 enum 成員名稱唯一，重複就加 _1, _2 ..."""
+    if base not in used:
+        used[base] = 0
+        return base
+    used[base] += 1
+    return f"{base}_{used[base]}"
+
 def sanitize_enum_member(name: str) -> str:
     """Sanitize a DBC enum label into SCREAMING_SNAKE_CASE suitable for Python IntEnum members.
     - Replace non-alnum with underscore
@@ -95,14 +103,12 @@ def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", de
             enum_name = f"{sig_name}Enum"
             lines.append(f"class {enum_name}(IntEnum):")
             # Preserve key order (sorted by numeric value)
-            not_used_keys = []
+            used_members = {}  # 用來記錄已經出現過的名稱
             for k in sorted(mapping.keys()) :
-                if mapping[k] ==  'Not used':
-                    not_used_keys.append(k)
-                    lines.append(f"    RESERVED_{len(not_used_keys)+1} = {k}")
-                else:
-                    member = sanitize_enum_member(mapping[k])
-                    lines.append(f"    {member} = {k}")
+                raw_val = mapping[k].strip() if mapping[k] is not None else "UNKNOWN"
+                member = sanitize_enum_member(raw_val)  # 先轉成合法 Python 名稱
+                member = unique_member_name(member, used_members)
+                lines.append(f"    {member} = {k}")
             lines.append("")
 
     # ===== Constants for bit layout =====
