@@ -54,6 +54,50 @@ def get_motorola_bit_positions(start_bit: int, length: int) -> List[Tuple[int, i
         bits.append((byte_index, bit_index))
     return bits
 
+GEN_FILE_RE = re.compile(r"^generate_0x[0-9A-Fa-f]+\.py$")
+def clean_output_dir(out_dir: str) -> None:
+    """只刪掉我們產的 generate_0x*.py 跟 generated_index.py"""
+    if not os.path.isdir(out_dir):
+        return
+    for name in os.listdir(out_dir):
+        if GEN_FILE_RE.match(name) or name == "generated_index.py":
+            os.remove(os.path.join(out_dir, name))
+            
+def write_generated_index(output_dir: str) -> None:
+    """
+    掃 output_dir 裡所有 generate_0x*.py，產生 generated_index.py
+    內容會是：
+        from . import generate_0x117 as can_0x117
+        from . import generate_0x210 as can_0x210
+        ...
+        __all__ = ["can_0x117", "can_0x210", ...]
+    """
+    pattern = re.compile(r"^generate_0x([0-9A-Fa-f]+)\.py$")
+    entries = []
+    for fname in sorted(os.listdir(output_dir)):
+        m = pattern.match(fname)
+        if not m:
+            continue
+        can_id_hex = m.group(1).upper()  # 讓名稱一致用大寫
+        mod_name = f"generate_0x{can_id_hex}"
+        alias = f"can_0x{can_id_hex}"
+        entries.append((mod_name, alias))
+
+    if not entries:
+        return  # 沒有檔就不寫
+
+    lines = []
+    for mod_name, alias in entries:
+        lines.append(f"from . import {mod_name} as {alias}")
+    all_names = ", ".join(f'"{alias}"' for _, alias in entries)
+    lines.append("")
+    lines.append(f"__all__ = [{all_names}]")
+    lines.append("")
+
+    index_path = os.path.join(output_dir, "generated_index.py")
+    with open(index_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+
 # ========================= Generator ========================= #
 
 def generate_can_msg_py(dbc_path: str, target_id: int, output_dir: str = ".", debug: bool = False, strict: bool = False, filename_prefix: str = ""):
@@ -257,6 +301,7 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true", help="顯示位元層級除錯輸出")
     parser.add_argument("--list", action="store_true", help="列出 DBC 所有 CAN 訊息")
     parser.add_argument("--strict", action="store_true", help="Enum 嚴格模式：遇到未定義的枚舉值即拋出錯誤（預設為寬鬆模式）")
+    parser.add_argument("--clean-out", action="store_true", help="產生前先清掉 out 目錄裡舊的 auto-generated 檔案")
     args = parser.parse_args()
 
     if args.list:
@@ -266,6 +311,9 @@ if __name__ == "__main__":
         out_dir = args.out or "."   # 空字串也當成 "."
         if out_dir != ".":
             ensure_dir(out_dir)
+            
+        if args.clean_out:
+            clean_output_dir(out_dir)
         
         if not args.id:
             raise ValueError("請使用 --id 指定要生成的 CAN ID；或使用 --id all 生成全部")
@@ -276,3 +324,6 @@ if __name__ == "__main__":
         else:
             target_id = int(args.id, 16) if str(args.id).startswith("0x") else int(args.id)
             generate_can_msg_py(args.dbc, target_id, args.out, args.debug, strict=args.strict, filename_prefix=args.prefix)
+            
+        write_generated_index(out_dir)
+
