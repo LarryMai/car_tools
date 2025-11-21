@@ -5,13 +5,22 @@ REM === 基本路徑 ===
 set "BASEDIR=%~dp0"
 if "%BASEDIR:~-1%"=="\" set "BASEDIR=%BASEDIR:~0,-1%"
 
-REM === 可調參數 ===
-set "TARGET_PLATFORM=x64"          REM 可改成 x86
-set "CONFIGURATION_NAME=Debug"     REM Debug / Release
-set "DOTNET_VERSION=net8.0"     REM Debug / Release
+REM ===== 可覆寫參數（環境變數優先生效） =====
+if not defined TARGET_PLATFORM       set "TARGET_PLATFORM=x64"
+if not defined CONFIGURATION_NAME    set "CONFIGURATION_NAME=Debug"
+if not defined DOTNET_VERSION        set "DOTNET_VERSION=net8.0"
+if not "%~1"=="" (
+  set "TARGETDIR=%~1"
+) else (
+  if not defined TARGETDIR (
+    REM 預設：..\zlg_sample_csharp\bin\<Platform>\<Config>\<TFM>\
+    set "TARGETDIR=%BASEDIR%\..\zlg_sample_csharp\bin\%TARGET_PLATFORM%\%CONFIGURATION_NAME%\%DOTNET_VERSION%"
+  )
+)
+
+
 
 REM === 路徑設定 ===
-set "TARGETDIR=%BASEDIR%\..\zlg_sample_csharp\bin\%TARGET_PLATFORM%\%CONFIGURATION_NAME%\%DOTNET_VERSION%"
 set "ZIP_PATH=%BASEDIR%\CAN_lib.zip"
 set "UNZIP_DIR=%BASEDIR%\CAN_lib"
 set "SRC_ARCH=zlgcan_%TARGET_PLATFORM%"
