@@ -59,150 +59,99 @@ namespace zlg_sample_csharp.Enums
         RoeRelated = 1 << 7,
     }
 
-    public sealed record UdsServiceInfo(
-        UdsService Service,
-        string Mnemonic,
-        string English,
-        string Chinese,
-        DiagnosticSessionMask AllowedSessions,
-        UdsServiceCapability Capabilities
-    );
-
-    public static class UdsServiceCatalog
+    public static class UdsServiceExtensions
     {
-        // 典型（可依 ECU 規格覆寫）
-        private static readonly Dictionary<UdsService, UdsServiceInfo> _db = new()
+        public static byte PositiveResponseSid(this UdsService sid)
+            => (byte)((byte)sid + 0x40);
+
+        public static string Mnemonic(this UdsService sid) => sid switch
         {
-            // --- Management
-            [UdsService.DiagnosticSessionControl] = new(UdsService.DiagnosticSessionControl, "DSC",
-                "DiagnosticSessionControl", "診斷會談控制",
-                DiagnosticSessionMask.All, UdsServiceCapability.CommMgmt | UdsServiceCapability.HasSubFunction),
-
-            [UdsService.ECUReset] = new(UdsService.ECUReset, "ER",
-                "ECUReset", "ECU 重置",
-                DiagnosticSessionMask.All, UdsServiceCapability.CommMgmt | UdsServiceCapability.HasSubFunction),
-
-            [UdsService.SecurityAccess] = new(UdsService.SecurityAccess, "SA",
-                "SecurityAccess", "安全存取",
-                DiagnosticSessionMask.All, UdsServiceCapability.CommMgmt | UdsServiceCapability.HasSubFunction),
-
-            [UdsService.CommunicationControl] = new(UdsService.CommunicationControl, "CC",
-                "CommunicationControl", "通訊控制",
-                DiagnosticSessionMask.All, UdsServiceCapability.CommMgmt | UdsServiceCapability.HasSubFunction),
-
-            [UdsService.TesterPresent] = new(UdsService.TesterPresent, "TP",
-                "TesterPresent", "測試器在線",
-                DiagnosticSessionMask.All, UdsServiceCapability.CommMgmt | UdsServiceCapability.HasSubFunction),
-
-            [UdsService.AccessTimingParameter] = new(UdsService.AccessTimingParameter, "ATP",
-                "AccessTimingParameter", "時序參數存取",
-                DiagnosticSessionMask.Extended | DiagnosticSessionMask.Programming, UdsServiceCapability.CommMgmt),
-
-            [UdsService.SecuredDataTransmission] = new(UdsService.SecuredDataTransmission, "SDT",
-                "SecuredDataTransmission", "安全資料傳輸",
-                DiagnosticSessionMask.Extended | DiagnosticSessionMask.Programming, UdsServiceCapability.CommMgmt),
-
-            [UdsService.ControlDTCSetting] = new(UdsService.ControlDTCSetting, "CDTCS",
-                "ControlDTCSetting", "DTC 控制設定",
-                DiagnosticSessionMask.All, UdsServiceCapability.CommMgmt | UdsServiceCapability.HasSubFunction),
-
-            [UdsService.ResponseOnEvent] = new(UdsService.ResponseOnEvent, "ROE",
-                "ResponseOnEvent", "事件回應",
-                DiagnosticSessionMask.Extended, UdsServiceCapability.CommMgmt | UdsServiceCapability.HasSubFunction | UdsServiceCapability.RoeRelated),
-
-            [UdsService.LinkControl] = new(UdsService.LinkControl, "LC",
-                "LinkControl", "連結控制",
-                DiagnosticSessionMask.Extended, UdsServiceCapability.CommMgmt | UdsServiceCapability.HasSubFunction),
-
-            // --- Data Transmission
-            [UdsService.ReadDataByIdentifier] = new(UdsService.ReadDataByIdentifier, "RDBI",
-                "ReadDataByIdentifier", "讀取資料識別碼",
-                DiagnosticSessionMask.Default | DiagnosticSessionMask.Extended, UdsServiceCapability.DataTransmission),
-
-            [UdsService.ReadMemoryByAddress] = new(UdsService.ReadMemoryByAddress, "RMBA",
-                "ReadMemoryByAddress", "讀取記憶體位址",
-                DiagnosticSessionMask.Extended | DiagnosticSessionMask.Programming, UdsServiceCapability.DataTransmission),
-
-            [UdsService.ReadScalingDataByIdentifier] = new(UdsService.ReadScalingDataByIdentifier, "RSDBI",
-                "ReadScalingDataByIdentifier", "讀取縮放資料識別碼",
-                DiagnosticSessionMask.Extended, UdsServiceCapability.DataTransmission),
-
-            [UdsService.ReadDataByPeriodicIdentifier] = new(UdsService.ReadDataByPeriodicIdentifier, "RDBPI",
-                "ReadDataByPeriodicIdentifier", "週期性讀取識別碼",
-                DiagnosticSessionMask.Extended, UdsServiceCapability.DataTransmission),
-
-            [UdsService.DynamicallyDefineDataIdentifier] = new(UdsService.DynamicallyDefineDataIdentifier, "DDDI",
-                "DynamicallyDefineDataIdentifier", "動態定義資料識別碼",
-                DiagnosticSessionMask.Extended | DiagnosticSessionMask.Programming, UdsServiceCapability.DataTransmission | UdsServiceCapability.HasSubFunction),
-
-            [UdsService.WriteDataByIdentifier] = new(UdsService.WriteDataByIdentifier, "WDBI",
-                "WriteDataByIdentifier", "寫入資料識別碼",
-                DiagnosticSessionMask.Extended | DiagnosticSessionMask.Programming, UdsServiceCapability.DataTransmission),
-
-            [UdsService.WriteMemoryByAddress] = new(UdsService.WriteMemoryByAddress, "WMBA",
-                "WriteMemoryByAddress", "寫入記憶體位址",
-                DiagnosticSessionMask.Programming, UdsServiceCapability.DataTransmission),
-
-            // --- Stored Data
-            [UdsService.ClearDiagnosticInformation] = new(UdsService.ClearDiagnosticInformation, "CDTCI",
-                "ClearDiagnosticInformation", "清除診斷資訊",
-                DiagnosticSessionMask.Default | DiagnosticSessionMask.Extended, UdsServiceCapability.StoredData),
-
-            [UdsService.ReadDTCInformation] = new(UdsService.ReadDTCInformation, "RDTCI",
-                "ReadDTCInformation", "讀取 DTC 資訊",
-                DiagnosticSessionMask.Default | DiagnosticSessionMask.Extended, UdsServiceCapability.StoredData | UdsServiceCapability.HasSubFunction),
-
-            // --- I/O & Routine
-            [UdsService.InputOutputControlByIdentifier] = new(UdsService.InputOutputControlByIdentifier, "IOCBI",
-                "InputOutputControlByIdentifier", "I/O 控制",
-                DiagnosticSessionMask.Extended, UdsServiceCapability.IoControl),
-
-            [UdsService.RoutineControl] = new(UdsService.RoutineControl, "RC",
-                "RoutineControl", "例程控制",
-                DiagnosticSessionMask.Extended | DiagnosticSessionMask.Programming, UdsServiceCapability.Routine | UdsServiceCapability.HasSubFunction),
-
-            // --- Download / Upload
-            [UdsService.RequestDownload] = new(UdsService.RequestDownload, "RD",
-                "RequestDownload", "請求下載",
-                DiagnosticSessionMask.Programming, UdsServiceCapability.DownloadUpload | UdsServiceCapability.HasSubFunction),
-
-            [UdsService.RequestUpload] = new(UdsService.RequestUpload, "RU",
-                "RequestUpload", "請求上傳",
-                DiagnosticSessionMask.Programming, UdsServiceCapability.DownloadUpload | UdsServiceCapability.HasSubFunction),
-
-            [UdsService.TransferData] = new(UdsService.TransferData, "TD",
-                "TransferData", "資料傳輸",
-                DiagnosticSessionMask.Programming, UdsServiceCapability.DownloadUpload),
-
-            [UdsService.RequestTransferExit] = new(UdsService.RequestTransferExit, "RTSE",
-                "RequestTransferExit", "結束傳輸",
-                DiagnosticSessionMask.Programming, UdsServiceCapability.DownloadUpload | UdsServiceCapability.HasSubFunction),
+            UdsService.DiagnosticSessionControl => "DSC",
+            UdsService.ECUReset => "ER",
+            UdsService.SecurityAccess => "SA",
+            UdsService.CommunicationControl => "CC",
+            UdsService.TesterPresent => "TP",
+            UdsService.AccessTimingParameter => "ATP",
+            UdsService.SecuredDataTransmission => "SDT",
+            UdsService.ControlDTCSetting => "CDTCS",
+            UdsService.ResponseOnEvent => "ROE",
+            UdsService.LinkControl => "LC",
+            UdsService.ReadDataByIdentifier => "RDBI",
+            UdsService.ReadMemoryByAddress => "RMBA",
+            UdsService.ReadScalingDataByIdentifier => "RSDBI",
+            UdsService.ReadDataByPeriodicIdentifier => "RDBPI",
+            UdsService.DynamicallyDefineDataIdentifier => "DDDI",
+            UdsService.WriteDataByIdentifier => "WDBI",
+            UdsService.WriteMemoryByAddress => "WMBA",
+            UdsService.ClearDiagnosticInformation => "CDTCI",
+            UdsService.ReadDTCInformation => "RDTCI",
+            UdsService.InputOutputControlByIdentifier => "IOCBI",
+            UdsService.RoutineControl => "RC",
+            UdsService.RequestDownload => "RD",
+            UdsService.RequestUpload => "RU",
+            UdsService.TransferData => "TD",
+            UdsService.RequestTransferExit => "RTSE",
+            _ => sid.ToString()
         };
 
-        public static bool TryGetInfo(UdsService sid, out UdsServiceInfo info) => _db.TryGetValue(sid, out info);
-
-        public static UdsServiceInfo Get(UdsService sid) => _db[sid];
-
-        public static bool IsAllowedIn(this UdsService sid, DiagnosticSessionType s)
-            => _db.TryGetValue(sid, out var i) && (i.AllowedSessions & s.ToMask()) != 0;
-
-        public static DiagnosticSessionMask ToMask(this DiagnosticSessionType s) => s switch
+        public static string EnglishName(this UdsService sid) => sid switch
         {
-            DiagnosticSessionType.DefaultSession => DiagnosticSessionMask.Default,
-            DiagnosticSessionType.ProgrammingSession => DiagnosticSessionMask.Programming,
-            DiagnosticSessionType.ExtendedSession => DiagnosticSessionMask.Extended,
-            _ => DiagnosticSessionMask.None
+            UdsService.DiagnosticSessionControl => "DiagnosticSessionControl",
+            UdsService.ECUReset => "ECUReset",
+            UdsService.SecurityAccess => "SecurityAccess",
+            UdsService.CommunicationControl => "CommunicationControl",
+            UdsService.TesterPresent => "TesterPresent",
+            UdsService.AccessTimingParameter => "AccessTimingParameter",
+            UdsService.SecuredDataTransmission => "SecuredDataTransmission",
+            UdsService.ControlDTCSetting => "ControlDTCSetting",
+            UdsService.ResponseOnEvent => "ResponseOnEvent",
+            UdsService.LinkControl => "LinkControl",
+            UdsService.ReadDataByIdentifier => "ReadDataByIdentifier",
+            UdsService.ReadMemoryByAddress => "ReadMemoryByAddress",
+            UdsService.ReadScalingDataByIdentifier => "ReadScalingDataByIdentifier",
+            UdsService.ReadDataByPeriodicIdentifier => "ReadDataByPeriodicIdentifier",
+            UdsService.DynamicallyDefineDataIdentifier => "DynamicallyDefineDataIdentifier",
+            UdsService.WriteDataByIdentifier => "WriteDataByIdentifier",
+            UdsService.WriteMemoryByAddress => "WriteMemoryByAddress",
+            UdsService.ClearDiagnosticInformation => "ClearDiagnosticInformation",
+            UdsService.ReadDTCInformation => "ReadDTCInformation",
+            UdsService.InputOutputControlByIdentifier => "InputOutputControlByIdentifier",
+            UdsService.RoutineControl => "RoutineControl",
+            UdsService.RequestDownload => "RequestDownload",
+            UdsService.RequestUpload => "RequestUpload",
+            UdsService.TransferData => "TransferData",
+            UdsService.RequestTransferExit => "RequestTransferExit",
+            _ => sid.ToString()
         };
 
-        public static byte PositiveResponseSid(this UdsService sid) => (byte)((byte)sid + 0x40);
-
-        public static bool Has(this UdsService sid, UdsServiceCapability cap)
-            => _db.TryGetValue(sid, out var i) && (i.Capabilities & cap) != 0;
-
-        public static string Mnemonic(this UdsService sid) => _db[sid].Mnemonic;
-        public static string EnglishName(this UdsService sid) => _db[sid].English;
-        public static string DisplayName(this UdsService sid) => _db[sid].Chinese;
-        public static DiagnosticSessionMask AllowedSessions(this UdsService sid) => _db[sid].AllowedSessions;
-        public static UdsServiceCapability Capabilities(this UdsService sid) => _db[sid].Capabilities;
+        public static string DisplayName(this UdsService sid) => sid switch
+        {
+            UdsService.DiagnosticSessionControl => "診斷會談控制",
+            UdsService.ECUReset => "ECU 重置",
+            UdsService.SecurityAccess => "安全存取",
+            UdsService.CommunicationControl => "通訊控制",
+            UdsService.TesterPresent => "測試器在線",
+            UdsService.AccessTimingParameter => "時序參數存取",
+            UdsService.SecuredDataTransmission => "安全資料傳輸",
+            UdsService.ControlDTCSetting => "DTC 控制設定",
+            UdsService.ResponseOnEvent => "事件回應",
+            UdsService.LinkControl => "連結控制",
+            UdsService.ReadDataByIdentifier => "讀取資料識別碼",
+            UdsService.ReadMemoryByAddress => "讀取記憶體位址",
+            UdsService.ReadScalingDataByIdentifier => "讀取縮放資料識別碼",
+            UdsService.ReadDataByPeriodicIdentifier => "週期性讀取識別碼",
+            UdsService.DynamicallyDefineDataIdentifier => "動態定義資料識別碼",
+            UdsService.WriteDataByIdentifier => "寫入資料識別碼",
+            UdsService.WriteMemoryByAddress => "寫入記憶體位址",
+            UdsService.ClearDiagnosticInformation => "清除診斷資訊",
+            UdsService.ReadDTCInformation => "讀取 DTC 資訊",
+            UdsService.InputOutputControlByIdentifier => "I/O 控制",
+            UdsService.RoutineControl => "例程控制",
+            UdsService.RequestDownload => "請求下載",
+            UdsService.RequestUpload => "請求上傳",
+            UdsService.TransferData => "資料傳輸",
+            UdsService.RequestTransferExit => "結束傳輸",
+            _ => sid.ToString()
+        };
     }
 }

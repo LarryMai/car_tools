@@ -1,18 +1,25 @@
 ﻿using System;
 
-namespace zlg_sample_csharp
+namespace zlg_sample_csharp.Enums
 {
     /// <summary>UDS 常見負回應碼（NRC: Negative Response Code）</summary>
     public enum UdsNrc : byte
     {
-        ServiceNotSupported = 0x11, // 服務不支援
-        SubFunctionNotSupported = 0x12, // 子功能不支援 / 或條件不符
-        IncorrectMessageLength = 0x13, // 長度錯誤或無效格式
-        ConditionsNotCorrect = 0x22, // 目前條件不允許
-        RequestSequenceError = 0x24, // 呼叫順序錯誤
-        RequestOutOfRange = 0x31, // 參數/索引越界或不被支援
-        SecurityAccessDenied = 0x33, // 安全存取未通過/被拒
-        ResponsePending = 0x78, // 進行中，之後會送最終回覆（要等）
+        GeneralReject = 0x10,
+        ServiceNotSupported = 0x11,
+        SubFunctionNotSupported = 0x12,
+        IncorrectMessageLength = 0x13,
+        BusyRepeatRequest = 0x21,
+        ConditionsNotCorrect = 0x22,
+        RequestSequenceError = 0x24,
+        RequestOutOfRange = 0x31,
+        SecurityAccessDenied = 0x33,
+        InvalidKey = 0x35,
+        ExceededNumberOfAttempts = 0x36,
+        RequiredTimeDelayNotExpired = 0x37,
+        ResponsePending = 0x78,
+        SubFunctionNotSupportedInActiveSession = 0x7E,
+        ServiceNotSupportedInActiveSession = 0x7F,
     }
 
     public static class UdsNrcExtensions
