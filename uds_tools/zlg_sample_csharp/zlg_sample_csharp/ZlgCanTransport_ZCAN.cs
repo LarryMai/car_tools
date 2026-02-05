@@ -222,7 +222,7 @@ namespace zlg_sample_csharp
             return Task.CompletedTask;
         }
 
-        public async Task<(uint canId, byte[] data)> ReceiveAsync(uint expectedCanId, int timeoutMs, CancellationToken ct)
+        public async Task<(uint canId, byte[] data)> ReceiveAsync(uint? expectedCanId, int timeoutMs, CancellationToken ct)
         {
             if (_chnHandle == IntPtr.Zero) throw new InvalidOperationException("CAN channel not opened.");
             var start = Environment.TickCount;
@@ -244,17 +244,20 @@ namespace zlg_sample_csharp
                             {
                                 IntPtr pItem = pBuf + i * oneSize;
                                 var item = Marshal.PtrToStructure<ZLGCAN.ZCAN_Receive_Data>(pItem);
-                                if (item != null && item.frame != null && item.frame.can_id == expectedCanId)
+                                if (item != null && item.frame != null)
                                 {
-                                    var len = Math.Min((int)item.frame.can_dlc, 8);
-                                    var payload = new byte[len];
-                                    Array.Copy(item.frame.data, payload, len);
-                                    return (item.frame.can_id, payload);
+                                    if (expectedCanId == null || item.frame.can_id == expectedCanId)
+                                    {
+                                        var len = Math.Min((int)item.frame.can_dlc, 8);
+                                        var payload = new byte[len];
+                                        Array.Copy(item.frame.data, payload, len);
+                                        return (item.frame.can_id, payload);
+                                    }
                                 }
                             }
                         }
 
-                        if (Environment.TickCount - start > timeoutMs)
+                        if (timeoutMs > 0 && Environment.TickCount - start > timeoutMs)
                             throw new TimeoutException("ZCAN receive timeout");
 
                         await Task.Delay(1, ct);
@@ -282,18 +285,20 @@ namespace zlg_sample_csharp
                             {
                                 IntPtr pItem = pBuf + i * oneSize;
                                 var item = Marshal.PtrToStructure<ZLGCAN.ZCAN_ReceiveFD_Data>(pItem);
-                                if (item != null && item.frame != null && item.frame.can_id == expectedCanId)
+                                if (item != null && item.frame != null)
                                 {
-                                    var len = Math.Min((int)item.frame.len, 64);
-                                    var payload = new byte[len];
-                                    Array.Copy(item.frame.data, payload, len);
-                                    return (item.frame.can_id, payload);
+                                    if (expectedCanId == null || item.frame.can_id == expectedCanId)
+                                    {
+                                        var len = Math.Min((int)item.frame.len, 64);
+                                        var payload = new byte[len];
+                                        Array.Copy(item.frame.data, payload, len);
+                                        return (item.frame.can_id, payload);
+                                    }
                                 }
                             }
                         }
 
-
-                        if (Environment.TickCount - start > timeoutMs)
+                        if (timeoutMs > 0 && Environment.TickCount - start > timeoutMs)
                             throw new TimeoutException("ZCAN receive timeout");
 
                         await Task.Delay(1, ct);

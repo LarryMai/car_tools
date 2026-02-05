@@ -1,0 +1,25 @@
+{
+  "device_type": "ZCAN_USBCANFD_100U",
+  "device_index": 0,
+  "channel_index": 0,
+  "arb_bps": 104286,
+  "data_bps": 4260362,
+  "tx_id": "682",
+  "rx_id": "602",
+  "hex_dir": "",
+  "command_type": "sniffer",
+  "commands": [
+    {
+      "type": "one_shot",
+      "service": "0x22",
+      "did": "0x1305"
+    },
+    {
+      "type": "periodically",
+      "service": "0x22",
+      "did": "0x1305"
+    }
+  ],
+  "sniffer_log_file": "sniffer.log",
+  "sniffer_in_new_window": true
+}
