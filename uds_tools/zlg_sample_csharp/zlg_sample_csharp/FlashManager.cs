@@ -12,9 +12,16 @@ namespace zlg_sample_csharp
         private readonly IUdSClient _uds;
         private readonly SecurityAlgorithm _security = new SecurityAlgorithm();
 
-        public FlashManager(IUdSClient uds)
+        public FlashManager(IUdSClient uds, FlashConfig? config = null)
         {
             _uds = uds;
+            if (config != null)
+            {
+                var k1 = config.GetAesKey(1);
+                if (k1 != null) _security.AesKeyLevel1 = k1;
+                var k2 = config.GetAesKey(2);
+                if (k2 != null) _security.AesKeyLevel2 = k2;
+            }
         }
 
         public async Task<bool> FlashAsync(string hexDirectory, CancellationToken ct = default)

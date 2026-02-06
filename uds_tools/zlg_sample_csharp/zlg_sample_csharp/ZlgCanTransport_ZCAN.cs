@@ -211,7 +211,11 @@ namespace zlg_sample_csharp
                 {
                     Marshal.StructureToPtr(tx, pTx, false);
                     uint sent = ZLGCAN.ZCAN_TransmitFD(_chnHandle, pTx, 1);
-                    if (sent == 0) throw new Exception("ZCAN_TransmitFD failed.");
+                    if (sent == 0)
+                    {
+                        Console.WriteLine($"[Debug] ZCAN_TransmitFD failed for ID: 0x{canId:X}, Len: {data.Length}. Hardware Error: {GetErrorInfo()}");
+                        throw new Exception("ZCAN_TransmitFD failed.");
+                    }
                 }
                 finally
                 {
@@ -220,6 +224,31 @@ namespace zlg_sample_csharp
             }
 
             return Task.CompletedTask;
+        }
+
+        private string GetErrorInfo()
+        {
+            if (_chnHandle == IntPtr.Zero) return "Channel not open";
+
+            int size = Marshal.SizeOf<ZLGCAN.ZCAN_CHANNEL_ERR_INFO>();
+            IntPtr pErr = Marshal.AllocHGlobal(size);
+            try
+            {
+                if (ZLGCAN.ZCAN_ReadChannelErrInfo(_chnHandle, pErr) == 1)
+                {
+                    var info = Marshal.PtrToStructure<ZLGCAN.ZCAN_CHANNEL_ERR_INFO>(pErr);
+                    return $"Code=0x{info.error_code:X8}, Passive={BitConverter.ToString(info.passive_ErrData)}, ArbiLost=0x{info.arbi_lost_ErrData:X2}";
+                }
+                return "Failed to read error info";
+            }
+            catch (Exception ex)
+            {
+                return $"Ex: {ex.Message}";
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(pErr);
+            }
         }
 
         public async Task<(uint canId, byte[] data)> ReceiveAsync(uint? expectedCanId, int timeoutMs, CancellationToken ct)
@@ -258,7 +287,7 @@ namespace zlg_sample_csharp
                         }
 
                         if (timeoutMs > 0 && Environment.TickCount - start > timeoutMs)
-                            throw new TimeoutException("ZCAN receive timeout");
+                            throw new TimeoutException($"ZCAN receive timeout. Hardware Status: {GetErrorInfo()}");
 
                         await Task.Delay(1, ct);
                     }
@@ -299,7 +328,7 @@ namespace zlg_sample_csharp
                         }
 
                         if (timeoutMs > 0 && Environment.TickCount - start > timeoutMs)
-                            throw new TimeoutException("ZCAN receive timeout");
+                            throw new TimeoutException($"ZCAN receive timeout. Hardware Status: {GetErrorInfo()}");
 
                         await Task.Delay(1, ct);
                     }

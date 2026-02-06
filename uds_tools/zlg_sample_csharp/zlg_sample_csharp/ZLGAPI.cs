@@ -113,6 +113,10 @@ namespace ZLGAPI
 
 
         [DllImport(".\\zlgcan.dll", CallingConvention = CallingConvention.StdCall)]
+        public static extern uint ZCAN_ReadChannelErrInfo(IntPtr chn_handle, IntPtr pErrInfo);
+
+
+        [DllImport(".\\zlgcan.dll", CallingConvention = CallingConvention.StdCall)]
         public static extern uint ZCAN_StartCAN(IntPtr chn_handle);
 
 
@@ -302,6 +306,15 @@ namespace ZLGAPI
             public byte __res1;            // reserved / padding
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
             public byte[] data;             // frame data
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct ZCAN_CHANNEL_ERR_INFO
+        {
+            public uint error_code;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
+            public byte[] passive_ErrData;
+            public byte arbi_lost_ErrData;
         }
 
 
