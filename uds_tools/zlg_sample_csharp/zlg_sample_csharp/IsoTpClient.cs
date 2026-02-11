@@ -13,6 +13,9 @@ namespace zlg_sample_csharp
         private readonly ICanTransport _can;
         private readonly uint _txId; // tester -> ECU
         private readonly uint _rxId; // ECU -> tester
+        private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
+        
+        public DateTime LastTxTime { get; private set; } = DateTime.MinValue;
 
         public IsoTpClient(ICanTransport can, uint txId, uint rxId)
         {
@@ -21,14 +24,42 @@ namespace zlg_sample_csharp
             _rxId = rxId;
         }
 
-        public async Task<byte[]> RequestAsync(byte[] payload, CancellationToken ct)
+        public async Task<byte[]> RequestAsync(byte[] payload, int timeoutMs, CancellationToken ct, bool verbose = false)
         {
-            await SendIsoTp(payload, ct);
-            return await ReceiveIsoTp(ct);
+            await _lock.WaitAsync(ct);
+            try
+            {
+                _can.ClearBuffer(); // Clear any noise/stale data from high-load bus before sending
+                await SendIsoTp(payload, timeoutMs, ct);
+                return await ReceiveIsoTp(timeoutMs, ct, verbose);
+            }
+            finally
+            {
+                _lock.Release();
+            }
         }
 
-        private async Task SendIsoTp(byte[] data, CancellationToken ct)
+        public async Task SendOnlyAsync(byte[] payload, int timeoutMs, CancellationToken ct)
         {
+            await _lock.WaitAsync(ct);
+            try
+            {
+                // Do NOT clear buffer here, as we might be sending a heartbeat while waiting for a response in another context (though strictly speaking, RequestAsync locks so that won't happen concurrently. But we shouldn't clear buffer for just sending.)
+                await SendIsoTp(payload, timeoutMs, ct);
+            }
+            finally
+            {
+                _lock.Release();
+            }
+        }
+
+        private async Task SendIsoTp(byte[] data, int timeoutMs, CancellationToken ct)
+        {
+            LastTxTime = DateTime.Now;
+            
+            // Ensure at least a reasonable timeout for FC (e.g. 2000ms minimum) if user passed 0 or small value
+            int waitFcTimeout = timeoutMs > 2000 ? timeoutMs : 2000;
+
             if (data.Length <= 7)
             {
                 // Single Frame (SF)
@@ -48,7 +79,7 @@ namespace zlg_sample_csharp
                 await _can.SendAsync(_txId, ff, ct);
 
                 // Wait Flow Control (FC)
-                var (fcId, fcData) = await _can.ReceiveAsync(_rxId, 1000, ct);
+                var (fcId, fcData) = await _can.ReceiveAsync(_rxId, waitFcTimeout, ct);
                 if ((fcData[0] & 0xF0) != 0x30)
                     throw new Exception("ISO-TP: expected FC after FF");
 
@@ -76,7 +107,7 @@ namespace zlg_sample_csharp
                     if (blk >= blockSize)
                     {
                         // Need next FC
-                        var (fcId2, fcData2) = await _can.ReceiveAsync(_rxId, 1000, ct);
+                        var (fcId2, fcData2) = await _can.ReceiveAsync(_rxId, waitFcTimeout, ct);
                         if ((fcData2[0] & 0xF0) != 0x30)
                             throw new Exception("ISO-TP: expected FC (mid)");
                         blk = 0;
@@ -88,18 +119,34 @@ namespace zlg_sample_csharp
             }
         }
 
-        private async Task<byte[]> ReceiveIsoTp(CancellationToken ct)
+        private async Task<byte[]> ReceiveIsoTp(int timeoutMs, CancellationToken ct, bool verbose = false)
         {
-            var (id, data) = await _can.ReceiveAsync(_rxId, 1000, ct);
+            var (id, data) = await _can.ReceiveAsync(_rxId, timeoutMs, ct);
+            if (verbose) Console.WriteLine($"[Debug IsoTp] Rx Raw: {BitConverter.ToString(data)}");
+
             byte pci = data[0];
             byte type = (byte)(pci >> 4);
 
             if (type == 0x0)
             {
-                int len = pci & 0x0F;
-                var resp = new byte[len];
-                Array.Copy(data, 1, resp, 0, len);
-                return resp;
+                // Single Frame
+                // Check for CAN FD Single Frame (Byte 0 is 0x00, Length is in Byte 1)
+                // Note: Standard SF with len=0 is invalid, so 0x00 always implies FD SF if using CAN FD
+                if (pci == 0x00 && data.Length > 8)
+                {
+                    int len = data[1];
+                    var resp = new byte[len];
+                    Array.Copy(data, 2, resp, 0, len);
+                    return resp;
+                }
+                else
+                {
+                    // Standard CAN SF
+                    int len = pci & 0x0F;
+                    var resp = new byte[len];
+                    Array.Copy(data, 1, resp, 0, len);
+                    return resp;
+                }
             }
             else if (type == 0x1)
             {
@@ -135,10 +182,10 @@ namespace zlg_sample_csharp
             throw new Exception("ISO-TP: unsupported frame type");
         }
 
-        public async Task<byte[]> ReceiveOnlyAsync(CancellationToken ct)
+        public async Task<byte[]> ReceiveOnlyAsync(int timeoutMs, CancellationToken ct)
         {
             // 直接沿用你類別裡的接收邏輯
-            return await ReceiveIsoTp(ct);
+            return await ReceiveIsoTp(timeoutMs, ct);
         }
     }
 }

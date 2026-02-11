@@ -17,5 +17,10 @@ namespace zlg_sample_csharp
         /// <param name="expectedCanId">If null, receives any frame. If set, filters by ID.</param>
         /// <returns>Tuple of (CAN ID, Data)</returns>
         Task<(uint canId, byte[] data)> ReceiveAsync(uint? expectedCanId, int timeoutMs, CancellationToken ct);
+
+        /// <summary>
+        /// Clears the receive buffer.
+        /// </summary>
+        void ClearBuffer();
     }
 }

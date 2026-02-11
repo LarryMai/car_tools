@@ -10,6 +10,7 @@ namespace zlg_sample_csharp
     public record UdsRequestOptions(
         int TimeoutMs = 1000,
         bool HandleResponsePending = true,
+        bool Verbose = false,
         CancellationToken CancellationToken = default
     );
 
@@ -23,9 +24,11 @@ namespace zlg_sample_csharp
         Task<bool> CommunicationControlAsync(byte controlType, byte communicationType, UdsRequestOptions? options = null);
         Task<bool> ControlDtcSettingAsync(byte settingType, UdsRequestOptions? options = null);
         Task<ushort> RequestDownloadAsync(uint address, uint size, UdsRequestOptions? options = null);
-        Task<bool> TransferDataAsync(byte sequenceNumber, byte[] data, UdsRequestOptions? options = null);
+        Task<byte> TransferDataAsync(byte sequenceNumber, byte[] data, UdsRequestOptions? options = null);
         Task<bool> RequestTransferExitAsync(UdsRequestOptions? options = null);
         Task<bool> EcuResetAsync(byte resetType, UdsRequestOptions? options = null);
         Task TesterPresentAsync(bool suppressResponse = true, UdsRequestOptions? options = null);
+        
+        DateTime LastActivityTime { get; }
     }
 }
