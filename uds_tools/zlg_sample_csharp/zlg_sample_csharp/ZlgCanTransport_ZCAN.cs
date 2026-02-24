@@ -211,7 +211,11 @@ namespace zlg_sample_csharp
                 {
                     Marshal.StructureToPtr(tx, pTx, false);
                     uint sent = ZLGCAN.ZCAN_TransmitFD(_chnHandle, pTx, 1);
-                    if (sent == 0) throw new Exception("ZCAN_TransmitFD failed.");
+                    if (sent == 0)
+                    {
+                        Console.WriteLine($"[Debug] ZCAN_TransmitFD failed for ID: 0x{canId:X}, Len: {data.Length}. Hardware Error: {GetErrorInfo()}");
+                        throw new Exception("ZCAN_TransmitFD failed.");
+                    }
                 }
                 finally
                 {
@@ -222,42 +226,97 @@ namespace zlg_sample_csharp
             return Task.CompletedTask;
         }
 
-        public async Task<(uint canId, byte[] data)> ReceiveAsync(uint expectedCanId, int timeoutMs, CancellationToken ct)
+        private string GetErrorInfo()
+        {
+            if (_chnHandle == IntPtr.Zero) return "Channel not open";
+
+            int size = Marshal.SizeOf<ZLGCAN.ZCAN_CHANNEL_ERR_INFO>();
+            IntPtr pErr = Marshal.AllocHGlobal(size);
+            try
+            {
+                if (ZLGCAN.ZCAN_ReadChannelErrInfo(_chnHandle, pErr) == 1)
+                {
+                    var info = Marshal.PtrToStructure<ZLGCAN.ZCAN_CHANNEL_ERR_INFO>(pErr);
+                    return $"Code=0x{info.error_code:X8}, Passive={BitConverter.ToString(info.passive_ErrData)}, ArbiLost=0x{info.arbi_lost_ErrData:X2}";
+                }
+                return "Failed to read error info";
+            }
+            catch (Exception ex)
+            {
+                return $"Ex: {ex.Message}";
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(pErr);
+            }
+        }
+
+        public void ClearBuffer()
+        {
+            if (_chnHandle == IntPtr.Zero) return;
+            
+            // Clear hardware buffer by reading all available frames
+            if (_mode == ZcanBusMode.Can)
+            {
+                int oneSize = Marshal.SizeOf<ZLGCAN.ZCAN_Receive_Data>();
+                IntPtr pBuf = Marshal.AllocHGlobal(oneSize * 100);
+                try { while (ZLGCAN.ZCAN_Receive(_chnHandle, pBuf, 100, 0) > 0) ; }
+                finally { Marshal.FreeHGlobal(pBuf); }
+            }
+            else
+            {
+                int oneSize = Marshal.SizeOf<ZLGCAN.ZCAN_ReceiveFD_Data>();
+                IntPtr pBuf = Marshal.AllocHGlobal(oneSize * 100);
+                try { while (ZLGCAN.ZCAN_ReceiveFD(_chnHandle, pBuf, 100, 0) > 0) ; }
+                finally { Marshal.FreeHGlobal(pBuf); }
+            }
+        }
+
+        public async Task<(uint canId, byte[] data)> ReceiveAsync(uint? expectedCanId, int timeoutMs, CancellationToken ct)
         {
             if (_chnHandle == IntPtr.Zero) throw new InvalidOperationException("CAN channel not opened.");
             var start = Environment.TickCount;
+            uint lastSeenId = 0;
 
             if (_mode == ZcanBusMode.Can)
             {
                 int oneSize = Marshal.SizeOf<ZLGCAN.ZCAN_Receive_Data>();
-                int count = 64;
+                int count = 100; // Increased buffer size for high load
                 IntPtr pBuf = Marshal.AllocHGlobal(oneSize * count);
                 try
                 {
                     while (true)
                     {
                         ct.ThrowIfCancellationRequested();
-                        uint got = ZLGCAN.ZCAN_Receive(_chnHandle, pBuf, (uint)count, 10);
+                        uint got = ZLGCAN.ZCAN_Receive(_chnHandle, pBuf, (uint)count, 5); // Short wait
                         if (got > 0)
                         {
                             for (int i = 0; i < got; i++)
                             {
                                 IntPtr pItem = pBuf + i * oneSize;
                                 var item = Marshal.PtrToStructure<ZLGCAN.ZCAN_Receive_Data>(pItem);
-                                if (item != null && item.frame != null && item.frame.can_id == expectedCanId)
+                                if (item?.frame != null)
                                 {
-                                    var len = Math.Min((int)item.frame.can_dlc, 8);
-                                    var payload = new byte[len];
-                                    Array.Copy(item.frame.data, payload, len);
-                                    return (item.frame.can_id, payload);
+                                    lastSeenId = item.frame.can_id;
+                                    if (expectedCanId == null || item.frame.can_id == expectedCanId)
+                                    {
+                                        var len = Math.Min((int)item.frame.can_dlc, 8);
+                                        var payload = new byte[len];
+                                        Array.Copy(item.frame.data, payload, len);
+                                        return (item.frame.can_id, payload);
+                                    }
                                 }
                             }
                         }
 
-                        if (Environment.TickCount - start > timeoutMs)
-                            throw new TimeoutException("ZCAN receive timeout");
+                        if (timeoutMs > 0 && Environment.TickCount - start > timeoutMs)
+                        {
+                            string err = GetErrorInfo();
+                            throw new TimeoutException($"ZCAN receive timeout. Last ID seen: 0x{lastSeenId:X}. HW: {err}");
+                        }
 
-                        await Task.Delay(1, ct);
+                        // Use a smaller delay to keep up with high traffic
+                        await Task.Yield(); 
                     }
                 }
                 finally
@@ -268,35 +327,41 @@ namespace zlg_sample_csharp
             else
             {
                 int oneSize = Marshal.SizeOf<ZLGCAN.ZCAN_ReceiveFD_Data>();
-                int count = 64;
+                int count = 100;
                 IntPtr pBuf = Marshal.AllocHGlobal(oneSize * count);
                 try
                 {
                     while (true)
                     {
                         ct.ThrowIfCancellationRequested();
-                        uint got = ZLGCAN.ZCAN_ReceiveFD(_chnHandle, pBuf, (uint)count, 10);
+                        uint got = ZLGCAN.ZCAN_ReceiveFD(_chnHandle, pBuf, (uint)count, 5);
                         if (got > 0)
                         {
                             for (int i = 0; i < got; i++)
                             {
                                 IntPtr pItem = pBuf + i * oneSize;
                                 var item = Marshal.PtrToStructure<ZLGCAN.ZCAN_ReceiveFD_Data>(pItem);
-                                if (item != null && item.frame != null && item.frame.can_id == expectedCanId)
+                                if (item?.frame != null)
                                 {
-                                    var len = Math.Min((int)item.frame.len, 64);
-                                    var payload = new byte[len];
-                                    Array.Copy(item.frame.data, payload, len);
-                                    return (item.frame.can_id, payload);
+                                    lastSeenId = item.frame.can_id;
+                                    if (expectedCanId == null || item.frame.can_id == expectedCanId)
+                                    {
+                                        var len = Math.Min((int)item.frame.len, 64);
+                                        var payload = new byte[len];
+                                        Array.Copy(item.frame.data, payload, len);
+                                        return (item.frame.can_id, payload);
+                                    }
                                 }
                             }
                         }
 
+                        if (timeoutMs > 0 && Environment.TickCount - start > timeoutMs)
+                        {
+                            string err = GetErrorInfo();
+                            throw new TimeoutException($"ZCAN receive timeout. Last ID seen: 0x{lastSeenId:X}. HW: {err}");
+                        }
 
-                        if (Environment.TickCount - start > timeoutMs)
-                            throw new TimeoutException("ZCAN receive timeout");
-
-                        await Task.Delay(1, ct);
+                        await Task.Yield();
                     }
                 }
                 finally

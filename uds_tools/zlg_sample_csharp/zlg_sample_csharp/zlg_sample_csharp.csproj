@@ -10,6 +10,13 @@
 
   <ItemGroup>
     <PackageReference Include="System.CommandLine" Version="2.0.0" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="config.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
